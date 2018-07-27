@@ -1,6 +1,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define TF 1
+#if TF
+#include "tensorflow/contrib/lite/context.h"
+#include "tensorflow/contrib/lite/interpreter.h"
+#endif
+
 // a pointer to this is a null pointer, but the compiler does not
 // know that because "sram" is a linker symbol from sections.lds.
 extern uint32_t sram;
@@ -12,42 +18,11 @@ extern uint32_t sram;
 
 // --------------------------------------------------------
 
-extern uint32_t flashio_worker_begin;
-extern uint32_t flashio_worker_end;
-
-void flashio(uint8_t *data, int len, uint8_t wrencmd)
-{
-	uint32_t func[&flashio_worker_end - &flashio_worker_begin];
-
-	uint32_t *src_ptr = &flashio_worker_begin;
-	uint32_t *dst_ptr = func;
-
-	while (src_ptr != &flashio_worker_end)
-		*(dst_ptr++) = *(src_ptr++);
-
-	((void(*)(uint8_t*, uint32_t, uint32_t))func)(data, len, wrencmd);
-}
-
-void set_flash_qspi_flag()
-{
-	uint32_t addr = 0x800002;
-	uint8_t buffer_rd[6] = {0x65, addr >> 16, addr >> 8, addr, 0, 0};
-	flashio(buffer_rd, 6, 0);
-
-	uint8_t buffer_wr[5] = {0x71, addr >> 16, addr >> 8, addr, buffer_rd[5] | 2};
-	flashio(buffer_wr, 5, 0x06);
-}
-
-void set_flash_latency(uint8_t value)
-{
-	reg_spictrl = (reg_spictrl & ~0x007f0000) | ((value & 15) << 16);
-
-	uint32_t addr = 0x800004;
-	uint8_t buffer_wr[5] = {0x71, addr >> 16, addr >> 8, addr, 0x70 | value};
-	flashio(buffer_wr, 5, 0x06);
-}
+int* __errno() {return 0;}
 
 // --------------------------------------------------------
+
+using namespace tflite;
 
 void putchar(char c)
 {
@@ -127,223 +102,158 @@ char getchar_prompt(char *prompt)
 	return c;
 }
 
-char getchar()
+char getchar2()
 {
 	return getchar_prompt(0);
 }
 
+
+#if TF
+/*
+static char error_buf[1024];
+
+class Reporter:public tflite::ErrorReporter {
+ public:
+  virtual ~Reporter(){}
+  int Report(const char* format, va_list args) {
+    vprintf(format, args);
+    int len = vsprintf(error_buf, format, args);
+    ptr += len;
+  }
+
+  char* ptr = error_buf;
+};
+
+Reporter reporter;
+*/
+
+/*
+struct Reporter:public tflite::ErrorReporter {
+ public:
+  virtual ~Reporter(){}
+
+   int Report(const char* format, va_list args) override {
+    //int len = vsprintf(error_buf, format, args);
+    //ptr += len;
+    return 0;
+  }
+
+  //char* ptr = error_buf;
+};
+
+Reporter reporter;
+*/
+
+
+void tf() {
+    // TfLiteRegistration reg_add = {nullptr, nullptr, nullptr, nullptr};
+    // reg_add.prepare = [](TfLiteContext* context, TfLiteNode* node) {
+    //   TfLiteTensor* tensorIn0 = &context->tensors[node->inputs->data[0]];
+    //   // TODO(aselle): Check if tensorIn1 is the same size as tensorOut
+    //   // and that tensorIn0 and tensorIn1 and tensorOut are all float32 type.
+    //   TfLiteTensor* tensorOut = &context->tensors[node->outputs->data[0]];
+    //   TfLiteIntArray* newSize = TfLiteIntArrayCopy(tensorIn0->dims);
+    //   TF_LITE_ENSURE_STATUS(context->ResizeTensor(context, tensorOut, newSize));
+    //   return kTfLiteOk;
+    // };
+    // reg_add.invoke = [](TfLiteContext* context, TfLiteNode* node) {
+    //   TfLiteTensor* a0 = &context->tensors[node->inputs->data[0]];
+    //   TfLiteTensor* a1 = &context->tensors[node->inputs->data[1]];
+    //   TfLiteTensor* a2 = &context->tensors[node->outputs->data[0]];
+    //   int count = a0->bytes / sizeof(float);
+    //   float* a = a0->data.f;
+    //   float* b = a1->data.f;
+    //   float* c = a2->data.f;
+    //   float* c_end = c + count;
+    //   for(; c != c_end; c++, a++, b++)
+    //     *c = *a + *b;
+    //   return kTfLiteOk;
+    // };
+
+  print("vector\n");
+  std::vector<std::string> tt;
+  print("add one\n");
+  tt.push_back("one");
+  print("add two\n");
+  tt.push_back("two");
+  print("add five\n");
+  tt.push_back("FIVE!");
+ //  print("add threesir\n");
+ //  tt.push_back("three sir");
+ //  print("add three\n");
+ // tt.push_back("THREE!");
+
+  print("loop\n");
+  for (auto ii=tt.begin(); ii!=tt.end(); ++ii) {
+    print(ii->c_str());
+    print("\n");
+  }
+
+  print("1\n");
+  //auto reporter = tflite::DefaultErrorReporter();
+   print("1a\n");
+   //std::unique_ptr<Interpreter> interpreter;
+
+   tflite::Interpreter interpreter;
+
+   print("1b\n");
+   int base;
+   interpreter.AddTensors(4, &base);
+
+   print("2\n");
+   // interpreter.AddNodeWithParameters({0, 1}, {2}, nullptr, 0, nullptr,
+   //                                             &reg_add);
+   // interpreter.AddNodeWithParameters({2, 2}, {3}, nullptr, 0, nullptr,
+   //                                             &reg_add);
+   TfLiteQuantizationParams quantized;
+   interpreter.SetTensorParametersReadWrite(0, kTfLiteFloat32, "", {3},
+                                            quantized);
+   interpreter.SetTensorParametersReadWrite(1, kTfLiteFloat32, "", {3},
+                                            quantized);
+   interpreter.SetTensorParametersReadWrite(2, kTfLiteFloat32, "", {3},
+                                            quantized);
+   interpreter.SetTensorParametersReadWrite(3, kTfLiteFloat32, "", {3},
+                                            quantized);
+   print("3\n");
+   interpreter.SetInputs({0, 1});
+   interpreter.SetOutputs({3});
+     print("4\n");
+   TfLiteStatus allocateStatus = interpreter.AllocateTensors();
+   float* aIn = interpreter.typed_tensor<float>(0);
+   float* bIn = interpreter.typed_tensor<float>(1);
+
+   aIn[0] = 1.f;
+   aIn[1] = 2.f;
+   aIn[2] = 3.f;
+
+   bIn[0] = -3.f;
+   bIn[1] = -2.f;
+   bIn[2] = 11.f;
+
+
+    // printf("tflite input: 2*([%2.2f %2.2f %2.2f] + [%2.2f %2.2f %2.2f])\n",
+    //        aIn[0], aIn[1], aIn[2],
+    //        bIn[0], bIn[1], bIn[2]
+    //       );
+
+    // interpreter.Invoke();
+    // float* cOut = interpreter.typed_tensor<float>(3);
+
+//    printf( "tflite output: %f %f %f\n", cOut[0], cOut[1], cOut[2]);
+
+    print("tf\n");
+}
+#endif
+
 // --------------------------------------------------------
 
-void cmd_read_flash_id()
-{
-	uint8_t buffer[17] = { 0x9F, /* zeros */ };
-	flashio(buffer, 17, 0);
-
-	for (int i = 1; i <= 16; i++) {
-		putchar(' ');
-		print_hex(buffer[i], 2);
-	}
-	putchar('\n');
-}
-
 // --------------------------------------------------------
-
-uint8_t cmd_read_flash_regs_print(uint32_t addr, const char *name)
-{
-	set_flash_latency(8);
-
-	uint8_t buffer[6] = {0x65, addr >> 16, addr >> 8, addr, 0, 0};
-	flashio(buffer, 6, 0);
-
-	print("0x");
-	print_hex(addr, 6);
-	print(" ");
-	print(name);
-	print(" 0x");
-	print_hex(buffer[5], 2);
-	print("\n");
-
-	return buffer[5];
-}
-
-void cmd_read_flash_regs()
-{
-	print("\n");
-	uint8_t sr1v = cmd_read_flash_regs_print(0x800000, "SR1V");
-	uint8_t sr2v = cmd_read_flash_regs_print(0x800001, "SR2V");
-	uint8_t cr1v = cmd_read_flash_regs_print(0x800002, "CR1V");
-	uint8_t cr2v = cmd_read_flash_regs_print(0x800003, "CR2V");
-	uint8_t cr3v = cmd_read_flash_regs_print(0x800004, "CR3V");
-	uint8_t vdlp = cmd_read_flash_regs_print(0x800005, "VDLP");
-}
-
-// --------------------------------------------------------
-
-uint32_t cmd_benchmark(bool verbose, uint32_t *instns_p)
-{
-	uint8_t data[256];
-	uint32_t *words = (void*)data;
-
-	uint32_t x32 = 314159265;
-
-	uint32_t cycles_begin, cycles_end;
-	uint32_t instns_begin, instns_end;
-	__asm__ volatile ("rdcycle %0" : "=r"(cycles_begin));
-	__asm__ volatile ("rdinstret %0" : "=r"(instns_begin));
-
-	for (int i = 0; i < 20; i++)
-	{
-		for (int k = 0; k < 256; k++)
-		{
-			x32 ^= x32 << 13;
-			x32 ^= x32 >> 17;
-			x32 ^= x32 << 5;
-			data[k] = x32;
-		}
-
-		for (int k = 0, p = 0; k < 256; k++)
-		{
-			if (data[k])
-				data[p++] = k;
-		}
-
-		for (int k = 0, p = 0; k < 64; k++)
-		{
-			x32 = x32 ^ words[k];
-		}
-	}
-
-	__asm__ volatile ("rdcycle %0" : "=r"(cycles_end));
-	__asm__ volatile ("rdinstret %0" : "=r"(instns_end));
-
-	if (verbose)
-	{
-		print("Cycles: 0x");
-		print_hex(cycles_end - cycles_begin, 8);
-		putchar('\n');
-
-		print("Instns: 0x");
-		print_hex(instns_end - instns_begin, 8);
-		putchar('\n');
-
-		print("Chksum: 0x");
-		print_hex(x32, 8);
-		putchar('\n');
-	}
-
-	if (instns_p)
-		*instns_p = instns_end - instns_begin;
-
-	return cycles_end - cycles_begin;
-}
-
-// --------------------------------------------------------
-
-void cmd_benchmark_all()
-{
-	uint32_t instns = 0;
-
-	print("default        ");
-	reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00000000;
-	print(": ");
-	print_hex(cmd_benchmark(false, &instns), 8);
-	putchar('\n');
-
-	for (int i = 8; i > 0; i--)
-	{
-		print("dspi-");
-		print_dec(i);
-		print("         ");
-
-		set_flash_latency(i);
-		reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00400000;
-
-		print(": ");
-		print_hex(cmd_benchmark(false, &instns), 8);
-		putchar('\n');
-	}
-
-	for (int i = 8; i > 0; i--)
-	{
-		print("dspi-crm-");
-		print_dec(i);
-		print("     ");
-
-		set_flash_latency(i);
-		reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00500000;
-
-		print(": ");
-		print_hex(cmd_benchmark(false, &instns), 8);
-		putchar('\n');
-	}
-
-	for (int i = 8; i > 0; i--)
-	{
-		print("qspi-");
-		print_dec(i);
-		print("         ");
-
-		set_flash_latency(i);
-		reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00200000;
-
-		print(": ");
-		print_hex(cmd_benchmark(false, &instns), 8);
-		putchar('\n');
-	}
-
-	for (int i = 8; i > 0; i--)
-	{
-		print("qspi-crm-");
-		print_dec(i);
-		print("     ");
-
-		set_flash_latency(i);
-		reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00300000;
-
-		print(": ");
-		print_hex(cmd_benchmark(false, &instns), 8);
-		putchar('\n');
-	}
-
-	for (int i = 8; i > 0; i--)
-	{
-		print("qspi-ddr-");
-		print_dec(i);
-		print("     ");
-
-		set_flash_latency(i);
-		reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00600000;
-
-		print(": ");
-		print_hex(cmd_benchmark(false, &instns), 8);
-		putchar('\n');
-	}
-
-	for (int i = 8; i > 0; i--)
-	{
-		print("qspi-ddr-crm-");
-		print_dec(i);
-		print(" ");
-
-		set_flash_latency(i);
-		reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00700000;
-
-		print(": ");
-		print_hex(cmd_benchmark(false, &instns), 8);
-		putchar('\n');
-	}
-
-	print("instns         : ");
-	print_hex(instns, 8);
-	putchar('\n');
-}
 
 // --------------------------------------------------------
 
 void main()
 {
 	reg_uart_clkdiv = 104;
-	set_flash_qspi_flag();
 
 	while (getchar_prompt("Press ENTER to continue..\n") != '\r') { /* wait */ }
 
@@ -353,6 +263,10 @@ void main()
 	print(" | |_) | |/ __/ _ \\___ \\ / _ \\| |\n");
 	print(" |  __/| | (_| (_) |__) | (_) | |___\n");
 	print(" |_|   |_|\\___\\___/____/ \\___/ \\____|\n");
+
+#if TF
+        tf();
+#endif
 
 	while (1)
 	{
@@ -399,7 +313,7 @@ void main()
 		for (int rep = 10; rep > 0; rep--)
 		{
 			print("Command> ");
-			char cmd = getchar();
+			char cmd = getchar2();
 			if (cmd > 32 && cmd < 127)
 				putchar(cmd);
 			print("\n");
@@ -407,10 +321,8 @@ void main()
 			switch (cmd)
 			{
 			case '1':
-				cmd_read_flash_id();
 				break;
 			case '2':
-				cmd_read_flash_regs();
 				break;
 			case '3':
 				reg_spictrl = (reg_spictrl & ~0x00700000) | 0x00000000;
@@ -428,10 +340,8 @@ void main()
 				reg_spictrl = reg_spictrl ^ 0x00100000;
 				break;
 			case '9':
-				cmd_benchmark(true, 0);
 				break;
 			case '0':
-				cmd_benchmark_all();
 				break;
 			default:
 				continue;
@@ -441,4 +351,3 @@ void main()
 		}
 	}
 }
-
