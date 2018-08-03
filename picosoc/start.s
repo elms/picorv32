@@ -42,7 +42,8 @@ addi x1, x1, 4
 blt x1, sp, setmemloop
 
 # call main
-call main
+call _init
+call _start
 loop:
 j loop
 
