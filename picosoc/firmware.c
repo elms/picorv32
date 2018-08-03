@@ -20,9 +20,40 @@ extern uint32_t sram;
 
 int* __errno() {return 0;}
 
+char *ppp1 = "hello world";
+char ppp0[] = "hello world";
+extern void *_end; /* any type would do, only its address is important */
+extern void *flashio_worker_begin;
+
 // --------------------------------------------------------
 
 using namespace tflite;
+
+#if 0
+#include <stdio.h>
+#include <malloc.h>
+
+static void *(*old_malloc_hook)(size_t, const void *);
+static void* moffset = 0x20;
+
+static void *my_malloc_hook(size_t size, const void *caller)
+{
+  void *result;
+
+  result = moffset;
+  moffset += size;
+
+  return result;
+}
+
+static void my_init_hook(void)
+{
+  old_malloc_hook = __malloc_hook;
+  __malloc_hook = my_malloc_hook;
+}
+
+void (*__malloc_initialize_hook)(void) = my_init_hook;
+#endif
 
 void putchar(char c)
 {
@@ -127,7 +158,6 @@ class Reporter:public tflite::ErrorReporter {
 Reporter reporter;
 */
 
-/*
 struct Reporter:public tflite::ErrorReporter {
  public:
   virtual ~Reporter(){}
@@ -142,7 +172,6 @@ struct Reporter:public tflite::ErrorReporter {
 };
 
 Reporter reporter;
-*/
 
 
 void tf() {
@@ -169,13 +198,53 @@ void tf() {
     //     *c = *a + *b;
     //   return kTfLiteOk;
     // };
+  void* tm;
+  putchar('.');
+  putchar('\n');
+  tm =  malloc(1);
 
+
+
+  char* blah = "blah blah";
+  print_hex(0x13, 8); print("\n");
+  print_hex(blah, 8); print("\n");
+
+  print_hex(&errno, 8); print("\n");
+
+  print_hex(&_end, 8); print("\n");
+  print_hex(&flashio_worker_begin, 8); print("\n");
+  print_hex(ppp0, 8); print("\n");
+  print_hex(ppp1, 8); print("\n");
+  print("done\n");
+
+  extern uint32_t* __malloc_av_;
+  print("av: ");print_hex(__malloc_av_, 8); print("\n");
+  for (int ii=0; ii <20; ii++) {
+    print_hex(&__malloc_av_[ii], 8); print("> "); print_hex(__malloc_av_[ii], 8); print("\n");
+  }
+  __malloc_av_ = 0x428;
+  print("av: ");print_hex(__malloc_av_, 8); print("\n");
+  for (int ii=0; ii <20; ii++) {
+    print_hex(&__malloc_av_[ii], 8); print("> "); print_hex(__malloc_av_[ii], 8); print("\n");
+  }
+
+  for (int ii=0; ii <20; ii++) {
+    tm =  malloc(1);
+    print_dec(ii); print(": ");print_hex(tm, 8); print("\n");
+  }
+
+
+
+  print_hex(0x12, 8);
   print("vector\n");
   std::vector<std::string> tt;
+  print_hex(tt.data(), 8);
   print("add one\n");
   tt.push_back("one");
+  print_hex(tt.data(), 8);
   print("add two\n");
   tt.push_back("two");
+  print_hex(tt.data(), 8);
   print("add five\n");
   tt.push_back("FIVE!");
  //  print("add threesir\n");
@@ -194,7 +263,7 @@ void tf() {
    print("1a\n");
    //std::unique_ptr<Interpreter> interpreter;
 
-   tflite::Interpreter interpreter;
+   tflite::Interpreter interpreter(&reporter);
 
    print("1b\n");
    int base;
@@ -254,6 +323,9 @@ void tf() {
 void main()
 {
 	reg_uart_clkdiv = 104;
+#if TF
+        tf();
+#endif
 
 	while (getchar_prompt("Press ENTER to continue..\n") != '\r') { /* wait */ }
 
@@ -264,9 +336,6 @@ void main()
 	print(" |  __/| | (_| (_) |__) | (_) | |___\n");
 	print(" |_|   |_|\\___\\___/____/ \\___/ \\____|\n");
 
-#if TF
-        tf();
-#endif
 
 	while (1)
 	{
