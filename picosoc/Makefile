@@ -35,14 +35,22 @@ hx8kprog_fw: firmware.bin
 
 # ---- Example Firmware ----
 
+TF_ROOT=../tensorflow/
+TF_LIB=tensorflow/contrib/lite/gen/lib/libtensorflow-lite.a
+
+LIBS = $(TF_ROOT)/$(TF_LIB)
+STATIC_LIBS = crt0.o crtbegin.o crtend.o libstdc++.a libc.a libgloss_nano.a libgcc.a
+STATIC_REALPATH_LIBS=$(foreach ii,$(STATIC_LIBS),`riscv32-unknown-elf-g++ -print-file-name=$(ii)`)
+
 firmware.elf: sections.lds start.s firmware.c
-	riscv32-unknown-elf-gcc -march=rv32imc -Wl,-Bstatic,-T,sections.lds,--strip-debug -ffreestanding -nostdlib -o firmware.elf start.s firmware.c
+#	riscv32-unknown-elf-gcc -march=rv32imc -Wl,-Bstatic,-T,sections.lds,--strip-debug -ffreestanding -nostdlib -o firmware.elf start.s firmware.c
+	riscv32-unknown-elf-g++ -v -march=rv32i -Wl,-N,-Bstatic,-T,riscv.ld,--strip-debug -nostdlib -fpermissive -ffreestanding -fno-rtti -fmessage-length=0 -fno-exceptions -fno-builtin -ffunction-sections -fdata-sections -I $(TF_ROOT) -o firmware.elf firmware.c start.s $(LIBS) $(STATIC_REALPATH_LIBS)
 
 firmware.hex: firmware.elf
-	riscv32-unknown-elf-objcopy -O verilog firmware.elf /dev/stdout | sed -e '1 s/@00000000/@00100000/; 2,65537 d;' > firmware.hex
+	riscv32-unknown-elf-objcopy -O verilog firmware.elf firmware.hex
 
 firmware.bin: firmware.elf
-	riscv32-unknown-elf-objcopy -O binary firmware.elf /dev/stdout | tail -c +1048577 > firmware.bin
+	riscv32-unknown-elf-objcopy -O binary firmware.elf firmware.bin
 
 # ---- Testbench for SPI Flash Model ----
 

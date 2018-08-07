@@ -1582,7 +1582,7 @@ module picorv32 #(
 								end else
 								if (CATCH_ILLINSN && (pcpi_timeout || instr_ecall_ebreak)) begin
 									pcpi_valid <= 0;
-									`debug($display("EBREAK OR UNSUPPORTED INSN AT 0x%08x", reg_pc);)
+									$display("EBREAK OR UNSUPPORTED INSN AT 0x%08x", reg_pc);
 									if (ENABLE_IRQ && !irq_mask[irq_ebreak] && !irq_active) begin
 										next_irq_pending[irq_ebreak] = 1;
 										cpu_state <= cpu_state_fetch;

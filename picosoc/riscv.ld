@@ -30,6 +30,10 @@ SECTIONS
     *(.dynamic);
   } > ram
 
+  .sbss : {
+    *(.sbss .sbss.* .gnu.linkonce.sb.*)
+  } > ram
+
   .text1 0x100000 : {
     start*(.text);
   } > flash

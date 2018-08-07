@@ -36,12 +36,21 @@ addi x30, zero, 0
 addi x31, zero, 0
 
 # zero initialize scratchpad memory
-setmemloop:
-sw zero, 0(x1)
-addi x1, x1, 4
-blt x1, sp, setmemloop
+# setmemloop:
+# sw zero, 0(x1)
+# addi x1, x1, 4
+# blt x1, sp, setmemloop
 
-# call main
+	lui	x1, 0x180
+	li	x7, 0x10
+cp_ram:
+	lw	x8, 0(x1)
+	sw	x8, 0(x7)
+	addi	x1, x1, 4
+	addi	x7, x7, 4
+	blt	x7, sp, cp_ram
+	
+#call _Z9ram_setupv
 call _init
 call _start
 loop:

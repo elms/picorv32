@@ -48,6 +48,8 @@ static void *my_malloc_hook(size_t size, const void *caller)
   return result;
 }
 
+extern void* __malloc_hook;
+
 static void my_init_hook(void)
 {
   old_malloc_hook = __malloc_hook;
@@ -160,6 +162,7 @@ class Reporter:public tflite::ErrorReporter {
 Reporter reporter;
 */
 
+
 struct Reporter:public tflite::ErrorReporter {
  public:
   virtual ~Reporter(){}
@@ -201,9 +204,9 @@ void tf() {
     //   return kTfLiteOk;
     // };
   void* tm;
-  putchar('.');
+  putchar(',');
   putchar('\n');
-  //tm =  malloc(1);
+  tm =  malloc(1);
 
 
 
@@ -221,6 +224,9 @@ void tf() {
   print_hex(&ppp0, 8); print("\n");
   print_hex(&ppp1, 8); print("\n");
   print("done\n");
+  print("uintptr_t: "); print_dec(sizeof(uintptr_t)); print("\n");
+  print("size_t: "); print_dec(sizeof(size_t)); print("\n");
+  print("uint32_t*: "); print_dec(sizeof(uint32_t*)); print("\n");
 
   extern uint32_t __malloc_av_[];
   print("av: ");print_hex(__malloc_av_, 8); print("\n");
@@ -322,32 +328,37 @@ void tf() {
 // --------------------------------------------------------
 
 
+void ram_setup() {
+          char *src = 0x180000;
+        char *dst = (char*)&_data;
+
+        //print("what\n");
+        // print_hex(dst, 8); print("\n");
+        // print_hex(src, 8); print("\n");
+        // print("&_data: ");
+        // print_hex(&_data, 8); print("\n");
+        // print("&_end: ");
+        // print_hex(&_end, 8); print("\n");
+        // print("&_edata: ");
+        // print_hex(&_edata, 8); print("\n");
+
+        /* ROM has data at end of text; copy it. */
+        while (dst < (char*)&_edata) {
+          *dst++ = *src++;
+        }
+
+}
+
 void main()
 {
 	reg_uart_clkdiv = 104;
-
-        char *src = 0x180000;
-        char *dst = (char*)&_data;
-
-        print_hex(dst, 8); print("\n");
-        print_hex(src, 8); print("\n");
-        print("&_data: ");
-        print_hex(&_data, 8); print("\n");
-        print("&_end: ");
-        print_hex(&_end, 8); print("\n");
-        print("&_edata: ");
-        print_hex(&_edata, 8); print("\n");
-
-        /* ROM has data at end of text; copy it. */
-        while (dst < &_edata) {
-          *dst++ = *src++;
-        }
-        print_hex(dst, 8); print("\n");
-        print_hex(src, 8); print("\n");
+        //ram_setup();
 
 #if TF
         tf();
 #endif
+        //print_hex(dst, 8); print("\n");
+        //print_hex(src, 8); print("\n");
 
 	while (getchar_prompt("Press ENTER to continue..\n") != '\r') { /* wait */ }
 
