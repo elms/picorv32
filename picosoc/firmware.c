@@ -20,44 +20,9 @@ extern uint32_t sram;
 
 int* __errno() {return 0;}
 
-char *ppp1 = "hello world";
-char ppp0[] = "hello world";
-extern void *_end; /* any type would do, only its address is important */
-extern void *_data;
-extern void *_edata;
-extern void *flashio_worker_begin;
-
 // --------------------------------------------------------
 
 using namespace tflite;
-
-#if 0
-#include <stdio.h>
-#include <malloc.h>
-
-static void *(*old_malloc_hook)(size_t, const void *);
-static void* moffset = 0x20;
-
-static void *my_malloc_hook(size_t size, const void *caller)
-{
-  void *result;
-
-  result = moffset;
-  moffset += size;
-
-  return result;
-}
-
-extern void* __malloc_hook;
-
-static void my_init_hook(void)
-{
-  old_malloc_hook = __malloc_hook;
-  __malloc_hook = my_malloc_hook;
-}
-
-void (*__malloc_initialize_hook)(void) = my_init_hook;
-#endif
 
 void putchar(char c)
 {
@@ -82,14 +47,29 @@ void print_hex(uint32_t v, int digits)
 	}
 }
 
-void print_dec(uint32_t v)
+void print_dec(int32_t v)
 {
-	if (v >= 100) {
-		print(">=100");
+  if (v<0) {
+    print("-");
+    v = -v;
+  }
+
+	if (v >= 1000) {
+		print(">=1000");
 		return;
 	}
 
-	if      (v >= 90) { putchar('9'); v -= 90; }
+	if      (v >= 900) { putchar('9'); v -= 900; }
+	else if (v >= 800) { putchar('8'); v -= 800; }
+	else if (v >= 700) { putchar('7'); v -= 700; }
+	else if (v >= 600) { putchar('6'); v -= 600; }
+	else if (v >= 500) { putchar('5'); v -= 500; }
+	else if (v >= 400) { putchar('4'); v -= 400; }
+	else if (v >= 300) { putchar('3'); v -= 300; }
+	else if (v >= 200) { putchar('2'); v -= 200; }
+	else if (v >= 100) { putchar('1'); v -= 100; }
+
+        if      (v >= 90) { putchar('9'); v -= 90; }
 	else if (v >= 80) { putchar('8'); v -= 80; }
 	else if (v >= 70) { putchar('7'); v -= 70; }
 	else if (v >= 60) { putchar('6'); v -= 60; }
@@ -144,180 +124,145 @@ char getchar2()
 
 
 #if TF
-/*
-static char error_buf[1024];
 
-class Reporter:public tflite::ErrorReporter {
- public:
-  virtual ~Reporter(){}
-  int Report(const char* format, va_list args) {
-    vprintf(format, args);
-    int len = vsprintf(error_buf, format, args);
-    ptr += len;
-  }
+static char error_buf[128];
+extern char *heap_ptr;
 
-  char* ptr = error_buf;
-};
-
-Reporter reporter;
-*/
-
-
-struct Reporter:public tflite::ErrorReporter {
+struct Reporter : public tflite::ErrorReporter {
  public:
   virtual ~Reporter(){}
 
    int Report(const char* format, va_list args) override {
-    //int len = vsprintf(error_buf, format, args);
-    //ptr += len;
-    return 0;
+     int len = 0;
+     print("ERROR: ");
+     print(format);
+     //len = vsprintf(error_buf, format, args);
+     //print(error_buf);
+     print("\n");
+     return len;
   }
 
-  //char* ptr = error_buf;
 };
 
-Reporter reporter;
-
-
 void tf() {
-    // TfLiteRegistration reg_add = {nullptr, nullptr, nullptr, nullptr};
-    // reg_add.prepare = [](TfLiteContext* context, TfLiteNode* node) {
-    //   TfLiteTensor* tensorIn0 = &context->tensors[node->inputs->data[0]];
-    //   // TODO(aselle): Check if tensorIn1 is the same size as tensorOut
-    //   // and that tensorIn0 and tensorIn1 and tensorOut are all float32 type.
-    //   TfLiteTensor* tensorOut = &context->tensors[node->outputs->data[0]];
-    //   TfLiteIntArray* newSize = TfLiteIntArrayCopy(tensorIn0->dims);
-    //   TF_LITE_ENSURE_STATUS(context->ResizeTensor(context, tensorOut, newSize));
-    //   return kTfLiteOk;
-    // };
-    // reg_add.invoke = [](TfLiteContext* context, TfLiteNode* node) {
-    //   TfLiteTensor* a0 = &context->tensors[node->inputs->data[0]];
-    //   TfLiteTensor* a1 = &context->tensors[node->inputs->data[1]];
-    //   TfLiteTensor* a2 = &context->tensors[node->outputs->data[0]];
-    //   int count = a0->bytes / sizeof(float);
-    //   float* a = a0->data.f;
-    //   float* b = a1->data.f;
-    //   float* c = a2->data.f;
-    //   float* c_end = c + count;
-    //   for(; c != c_end; c++, a++, b++)
-    //     *c = *a + *b;
-    //   return kTfLiteOk;
-    // };
-  void* tm;
-  putchar(',');
-  putchar('\n');
-  tm =  malloc(1);
 
+  print("1\n");
+  Reporter* pReporter = new Reporter();
+  print("1a\n");
 
+  tflite::Interpreter interpreter(pReporter);
 
-  char* blah = "blah blah";
-  print_hex(0x13, 8); print("\n");
-  print_hex(blah, 8); print("\n");
+  print("1b\n");
+  int base = 0;
+  interpreter.AddTensors(4, &base);
+  print("base: ");print_dec(base);print("\n");
+  interpreter.AddTensors(1, &base);
+  print("base: ");print_dec(base);print("\n");
 
-  print_hex(&errno, 8); print("\n");
-  print("_end: ");
-  print_hex(&_end, 8); print("\n");
-  print_hex(&flashio_worker_begin, 8); print("\n");
-  print("ppp\n");
-  print_hex(ppp0, 8); print("\n");
-  print_hex(ppp1, 8); print("\n");
-  print_hex(&ppp0, 8); print("\n");
-  print_hex(&ppp1, 8); print("\n");
-  print("done\n");
-  print("uintptr_t: "); print_dec(sizeof(uintptr_t)); print("\n");
-  print("size_t: "); print_dec(sizeof(size_t)); print("\n");
-  print("uint32_t*: "); print_dec(sizeof(uint32_t*)); print("\n");
+  print("2\n");
+  TfLiteRegistration reg_add = {nullptr, nullptr, nullptr, nullptr};
+  reg_add.prepare = [](TfLiteContext* context, TfLiteNode* node) {
+      TfLiteTensor* tensorIn0 = &context->tensors[node->inputs->data[0]];
+      // TODO(aselle): Check if tensorIn1 is the same size as tensorOut
+      // and that tensorIn0 and tensorIn1 and tensorOut are all float32 type.
+      TfLiteTensor* tensorOut = &context->tensors[node->outputs->data[0]];
+      print("PicoSoC TFLite Demo1!\n");
+      TfLiteIntArray* newSize = TfLiteIntArrayCopy(tensorIn0->dims);
+      TF_LITE_ENSURE_STATUS(context->ResizeTensor(context, tensorOut, newSize));
+      print("PicoSoC TFLite Demo2!\n");
+      return kTfLiteOk;
+    };
+    reg_add.invoke = [](TfLiteContext* context, TfLiteNode* node) {
+                       print("PicoSoC TFLite Demo!!\n");
+      TfLiteTensor* a0 = &context->tensors[node->inputs->data[0]];
+      TfLiteTensor* a1 = &context->tensors[node->inputs->data[1]];
+      TfLiteTensor* a2 = &context->tensors[node->outputs->data[0]];
+      int count = a0->bytes / sizeof(float);
+      float* a = a0->data.f;
+      float* b = a1->data.f;
+      float* c = a2->data.f;
+      float* c_end = c + count;
+      for(; c != c_end; c++, a++, b++)
+        *c = *a + *b;
+      return kTfLiteOk;
+    };
+  print("heap: ");print_hex(heap_ptr, 8);print("\n");
 
-  extern uint32_t __malloc_av_[];
-  print("av: ");print_hex(__malloc_av_, 8); print("\n");
-  print("&av: ");print_hex(&__malloc_av_, 8); print("\n");
-  for (int ii=0; ii <128*2; ii++) {
-    print_hex(&__malloc_av_[ii], 8); print("> "); print_hex(__malloc_av_[ii], 8); print("\n");
+  interpreter.AddNodeWithParameters({0, 1}, {2}, nullptr, 0, nullptr,
+                                      &reg_add);
+  print("heap: ");print_hex(heap_ptr, 8);print("\n");
+  print("2a\n");
+  interpreter.AddNodeWithParameters({2, 2}, {3}, nullptr, 0, nullptr,
+                                     &reg_add);
+
+  print("2b\n");
+  TfLiteQuantizationParams quantized;
+  interpreter.SetTensorParametersReadWrite(0, kTfLiteFloat32, "", {3},
+                                           quantized);
+  interpreter.SetTensorParametersReadWrite(1, kTfLiteFloat32, "", {3},
+                                           quantized);
+  interpreter.SetTensorParametersReadWrite(2, kTfLiteFloat32, "", {3},
+                                           quantized);
+  interpreter.SetTensorParametersReadWrite(3, kTfLiteFloat32, "", {3},
+                                           quantized);
+  print("3\n");
+  interpreter.SetInputs({0, 1});
+  interpreter.SetOutputs({3});
+  print("4\n");
+
+  TfLiteStatus allocateStatus = interpreter.AllocateTensors();
+  print("4a\n");
+  auto tt0 = interpreter.tensor(0);
+  print("tt0: ");print_hex(tt0, 8);print("\n");
+
+  float* aIn = interpreter.typed_tensor<float>(0);
+  float* bIn = interpreter.typed_tensor<float>(1);
+
+  aIn[0] = 1.f;
+  aIn[1] = 2.f;
+  aIn[2] = 3.f;
+
+  bIn[0] = -4.f;
+  bIn[1] = -2.f;
+  bIn[2] = 11.f;
+
+  print("aIn: ");
+  print_hex(aIn, 8);
+  print("\n");
+  for (int ii=0; ii<3; ii++) {
+    print_dec(aIn[ii]);
+    print("\n");
+  }
+  print("bIn: ");
+  print_hex(bIn, 8);
+  print("\n");
+  for (int ii=0; ii<3; ii++) {
+    print_dec(bIn[ii]);
+     print("\n");
   }
 
-  for (int ii=0; ii <20; ii++) {
-    tm =  malloc(1);
-    print_dec(ii); print(": ");print_hex(tm, 8); print("\n");
-  }
 
+  // printf("tflite input: 2*([%2.2f %2.2f %2.2f] + [%2.2f %2.2f %2.2f])\n",
+  //        aIn[0], aIn[1], aIn[2],
+  //        bIn[0], bIn[1], bIn[2]
+    //       );
+  print("5\n");
+  interpreter.Invoke();
+  print("6\n");
+  float* cOut = interpreter.typed_tensor<float>(3);
 
-
-  print_hex(0x12, 8);
-  print("vector\n");
-  std::vector<std::string> tt;
-  print_hex(tt.data(), 8);
-  print("add one\n");
-  tt.push_back("one");
-  print_hex(tt.data(), 8);
-  print("add two\n");
-  tt.push_back("two");
-  print_hex(tt.data(), 8);
-  print("add five\n");
-  tt.push_back("FIVE!");
- //  print("add threesir\n");
- //  tt.push_back("three sir");
- //  print("add three\n");
- // tt.push_back("THREE!");
-
-  print("loop\n");
-  for (auto ii=tt.begin(); ii!=tt.end(); ++ii) {
-    print(ii->c_str());
+  print("cOut: ");
+  print_hex(cOut, 8);
+  print("\n");
+  //    printf( "tflite output: %f %f %f\n", cOut[0], cOut[1], cOut[2]);
+  for (int ii=0; ii<3; ii++) {
+    print_dec(cOut[ii]);
     print("\n");
   }
 
-  print("1\n");
-  //auto reporter = tflite::DefaultErrorReporter();
-   print("1a\n");
-   //std::unique_ptr<Interpreter> interpreter;
+  print("tf\n");
+  print("heap: ");print_hex(heap_ptr, 8);print("\n");
 
-   tflite::Interpreter interpreter(&reporter);
-
-   print("1b\n");
-   int base;
-   interpreter.AddTensors(4, &base);
-
-   print("2\n");
-   // interpreter.AddNodeWithParameters({0, 1}, {2}, nullptr, 0, nullptr,
-   //                                             &reg_add);
-   // interpreter.AddNodeWithParameters({2, 2}, {3}, nullptr, 0, nullptr,
-   //                                             &reg_add);
-   TfLiteQuantizationParams quantized;
-   interpreter.SetTensorParametersReadWrite(0, kTfLiteFloat32, "", {3},
-                                            quantized);
-   interpreter.SetTensorParametersReadWrite(1, kTfLiteFloat32, "", {3},
-                                            quantized);
-   interpreter.SetTensorParametersReadWrite(2, kTfLiteFloat32, "", {3},
-                                            quantized);
-   interpreter.SetTensorParametersReadWrite(3, kTfLiteFloat32, "", {3},
-                                            quantized);
-   print("3\n");
-   interpreter.SetInputs({0, 1});
-   interpreter.SetOutputs({3});
-     print("4\n");
-   TfLiteStatus allocateStatus = interpreter.AllocateTensors();
-   float* aIn = interpreter.typed_tensor<float>(0);
-   float* bIn = interpreter.typed_tensor<float>(1);
-
-   aIn[0] = 1.f;
-   aIn[1] = 2.f;
-   aIn[2] = 3.f;
-
-   bIn[0] = -3.f;
-   bIn[1] = -2.f;
-   bIn[2] = 11.f;
-
-
-    // printf("tflite input: 2*([%2.2f %2.2f %2.2f] + [%2.2f %2.2f %2.2f])\n",
-    //        aIn[0], aIn[1], aIn[2],
-    //        bIn[0], bIn[1], bIn[2]
-    //       );
-
-    // interpreter.Invoke();
-    // float* cOut = interpreter.typed_tensor<float>(3);
-
-//    printf( "tflite output: %f %f %f\n", cOut[0], cOut[1], cOut[2]);
-
-    print("tf\n");
 }
 #endif
 
@@ -327,38 +272,14 @@ void tf() {
 
 // --------------------------------------------------------
 
-
-void ram_setup() {
-          char *src = 0x180000;
-        char *dst = (char*)&_data;
-
-        //print("what\n");
-        // print_hex(dst, 8); print("\n");
-        // print_hex(src, 8); print("\n");
-        // print("&_data: ");
-        // print_hex(&_data, 8); print("\n");
-        // print("&_end: ");
-        // print_hex(&_end, 8); print("\n");
-        // print("&_edata: ");
-        // print_hex(&_edata, 8); print("\n");
-
-        /* ROM has data at end of text; copy it. */
-        while (dst < (char*)&_edata) {
-          *dst++ = *src++;
-        }
-
-}
 
 void main()
 {
 	reg_uart_clkdiv = 104;
-        //ram_setup();
 
 #if TF
         tf();
 #endif
-        //print_hex(dst, 8); print("\n");
-        //print_hex(src, 8); print("\n");
 
 	while (getchar_prompt("Press ENTER to continue..\n") != '\r') { /* wait */ }
 

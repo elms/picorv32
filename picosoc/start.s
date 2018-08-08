@@ -40,9 +40,9 @@ addi x31, zero, 0
 # sw zero, 0(x1)
 # addi x1, x1, 4
 # blt x1, sp, setmemloop
-
 	lui	x1, 0x180
-	li	x7, 0x10
+	la      x7, _data
+
 cp_ram:
 	lw	x8, 0(x1)
 	sw	x8, 0(x7)
@@ -51,7 +51,6 @@ cp_ram:
 	blt	x7, sp, cp_ram
 	
 #call _Z9ram_setupv
-call _init
 call _start
 loop:
 j loop

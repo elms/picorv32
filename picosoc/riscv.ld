@@ -10,21 +10,14 @@ OUTPUT_FORMAT("elf32-littleriscv", "elf32-littleriscv",
 OUTPUT_ARCH(riscv)
 
 MEMORY {
-  ram	(!rx)	: org = 0, l = 4k
+  ram	(!rx)	: org = 0, l = 6k
   flash	(rx)	: org = 0x100000, l = 512k /* 1<<(10 + 9) */
-  rom	(!rx)	: org = 0x180000, l = 4k /* 1<<20 + 1<<19 */
+  rom	(!rx)	: org = 0x180000, l = 6k /* 1<<20 + 1<<19 */
 }
 
 SECTIONS
 {
-  .data 0x10 : AT ( 0x180000 ) {
-    _data = .; PROVIDE (data = .);
-    *(.data);
-    _edata = .; PROVIDE (edata = .);
-    _end = .; PROVIDE (end = .);
-    __global_pointer$ = . ;
-  } > ram
-  
+
   .bss : {
     *(.bss);
     *(.dynamic);
@@ -34,13 +27,22 @@ SECTIONS
     *(.sbss .sbss.* .gnu.linkonce.sb.*)
   } > ram
 
+  .data : AT ( 0x180000 ) {
+    _data = .; PROVIDE (data = .);
+    *(.data);
+    *(COMMON);
+    *(.sdata .sdata.*);
+    *(.sdata2);
+    __global_pointer$ = . ;
+    _edata = .; PROVIDE (edata = .);
+    _end = .; PROVIDE (end = .);
+  } > ram
+
   .text1 0x100000 : {
     start*(.text);
   } > flash
   .text2 : {
     *(.text);
-    *(.sdata);
-    *(.sdata2);
     *(.gcc_except_table);
     *(*);
   } > flash

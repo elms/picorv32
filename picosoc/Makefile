@@ -35,7 +35,7 @@ hx8kprog_fw: firmware.bin
 
 # ---- Example Firmware ----
 
-TF_ROOT=../tensorflow/
+TF_ROOT=../../../tensorflow/
 TF_LIB=tensorflow/contrib/lite/gen/lib/libtensorflow-lite.a
 
 LIBS = $(TF_ROOT)/$(TF_LIB)
@@ -44,7 +44,7 @@ STATIC_REALPATH_LIBS=$(foreach ii,$(STATIC_LIBS),`riscv32-unknown-elf-g++ -print
 
 firmware.elf: sections.lds start.s firmware.c
 #	riscv32-unknown-elf-gcc -march=rv32imc -Wl,-Bstatic,-T,sections.lds,--strip-debug -ffreestanding -nostdlib -o firmware.elf start.s firmware.c
-	riscv32-unknown-elf-g++ -v -march=rv32i -Wl,-N,-Bstatic,-T,riscv.ld,--strip-debug -nostdlib -fpermissive -ffreestanding -fno-rtti -fmessage-length=0 -fno-exceptions -fno-builtin -ffunction-sections -fdata-sections -I $(TF_ROOT) -o firmware.elf firmware.c start.s $(LIBS) $(STATIC_REALPATH_LIBS)
+	riscv32-unknown-elf-g++ -v -march=rv32i -Wl,-N,-Bstatic,-T,riscv.ld,--strip-debug -nostdlib -fpermissive -ffreestanding -fno-rtti -fmessage-length=0 -fno-exceptions -fno-builtin -ffunction-sections -fdata-sections -funsigned-char  -O3 --std=c++11 -I $(TF_ROOT) -o firmware.elf firmware.c start.s $(LIBS) $(STATIC_REALPATH_LIBS)
 
 firmware.hex: firmware.elf
 	riscv32-unknown-elf-objcopy -O verilog firmware.elf firmware.hex
